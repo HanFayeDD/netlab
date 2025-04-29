@@ -4,3 +4,4 @@ log
 out.pcap
 .vscode/
 build/
+*.bat
