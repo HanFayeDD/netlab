@@ -58,6 +58,22 @@ void arp_print() {
  */
 void arp_req(uint8_t *target_ip) {
     // TO-DO
+    //初始化缓冲区
+    buf_init(&txbuf, sizeof(arp_pkt_t));
+
+    //填写ARP报头
+    arp_pkt_t *arp_pkt = (arp_pkt_t *)txbuf.data;
+    *arp_pkt = arp_init_pkt;//将预先定义好的报头复制进data字段
+
+    //设置目标IP地址
+    memcpy(arp_pkt->target_ip, target_ip, NET_IP_LEN);
+
+    //协议类型
+    arp_pkt->opcode16 = swap16(ARP_REQUEST);
+
+    //发送arp报文
+    uint8_t broadcast_mac[NET_MAC_LEN] = {0xFF, 0xFF, 0xFF, 0xFF, 0xFF, 0xFF};
+    ethernet_out(&txbuf, broadcast_mac, NET_PROTOCOL_ARP);
 }
 
 /**
@@ -68,6 +84,25 @@ void arp_req(uint8_t *target_ip) {
  */
 void arp_resp(uint8_t *target_ip, uint8_t *target_mac) {
     // TO-DO
+    //初始化缓冲区
+    buf_init(&txbuf, sizeof(arp_pkt_t));
+
+    //填写报文首部
+    arp_pkt_t *arp_pkt = (arp_pkt_t *)txbuf.data;
+    *arp_pkt = arp_init_pkt;
+
+    //设置操作码
+    arp_pkt->opcode16 = swap16(ARP_REPLY);
+
+    //设置arp请求发起方的IP和MAC信息
+    memcpy(arp_pkt->target_ip, target_ip, NET_IP_LEN);
+    memcpy(arp_pkt->target_mac, target_mac, NET_MAC_LEN);
+
+    //设置本机mac
+    memcpy(arp_pkt->sender_mac, net_if_mac, NET_MAC_LEN);
+
+    //发送arp回复报文
+    ethernet_out(&txbuf, target_mac, NET_PROTOCOL_ARP);
 }
 
 /**
@@ -78,6 +113,40 @@ void arp_resp(uint8_t *target_ip, uint8_t *target_mac) {
  */
 void arp_in(buf_t *buf, uint8_t *src_mac) {
     // TO-DO
+    //检查数据长度
+    if (buf->len < sizeof(arp_pkt_t)){
+        return;
+    }
+    arp_pkt_t *arp_pkt = (arp_pkt_t *)buf->data;
+    //报头检查
+    if (swap16(arp_pkt->hw_type16) != ARP_HW_ETHER || 
+    swap16(arp_pkt->pro_type16) != NET_PROTOCOL_IP ||
+    arp_pkt->hw_len != NET_MAC_LEN || 
+    arp_pkt->pro_len != NET_IP_LEN) {
+        return;
+    }
+    //更新arp表项目
+    uint16_t opcode = swap16(arp_pkt->opcode16);
+    //更新ip-mac表
+    map_set(&arp_table, arp_pkt->sender_ip, arp_pkt->sender_mac);
+    //更细ip-缓存表
+    buf_t *cached_buf = map_get(&arp_buf, arp_pkt->sender_ip);
+    if (cached_buf != NULL){
+        //有缓存
+        //收到的是ARP回复
+        if (opcode == ARP_REPLY){
+            // 发送已有mac的数据包
+            ethernet_out(cached_buf, arp_pkt->sender_mac, NET_PROTOCOL_IP);
+            // 删除缓存
+            map_delete(&arp_buf, arp_pkt->sender_ip);
+        }
+    } else {
+        //无缓存的情况
+        // 判断是否是请求本机的mac地址
+        if (opcode == ARP_REQUEST && memcmp(arp_pkt->target_ip, net_if_ip, NET_IP_LEN) == 0){
+            arp_resp(arp_pkt->sender_ip, arp_pkt->sender_mac);
+        }
+    }
 }
 
 /**
@@ -89,6 +158,20 @@ void arp_in(buf_t *buf, uint8_t *src_mac) {
  */
 void arp_out(buf_t *buf, uint8_t *ip) {
     // TO-DO
+    //查找arp表
+    uint8_t *mac = map_get(&arp_table, ip);
+    //找到对应项目
+    if (mac != NULL){
+        ethernet_out(buf, mac, NET_PROTOCOL_IP);
+    } else {
+        //未找到对应项目
+        buf_t *cached_buf = map_get(&arp_buf, ip);
+        if (cached_buf == NULL) {
+            //没有正在等待的arp请求
+            map_set(&arp_buf, ip, buf);
+            arp_req(ip);
+        }
+    }
 }
 
 /**
