@@ -120,6 +120,30 @@ typedef struct peso_hdr {
  */
 uint16_t transport_checksum(uint8_t protocol, buf_t *buf, uint8_t *src_ip, uint8_t *dst_ip) {
     // TO-DO
+    // Step1: 增加UDP伪头部
+    buf_add_header(buf, sizeof(peso_hdr_t));
     
-
+    // Step2: 暂存IP头部(如果有)
+    uint8_t ip_hdr_backup[sizeof(peso_hdr_t)];
+    memcpy(ip_hdr_backup, buf->data, sizeof(peso_hdr_t));
+    
+    // Step3: 填写UDP伪头部字段
+    peso_hdr_t *pseudo_hdr = (peso_hdr_t *)buf->data;
+    memcpy(pseudo_hdr->src_ip, src_ip, NET_IP_LEN);
+    memcpy(pseudo_hdr->dst_ip, dst_ip, NET_IP_LEN);
+    pseudo_hdr->placeholder = 0;
+    pseudo_hdr->protocol = protocol;
+    pseudo_hdr->total_len16 = swap16(buf->len - sizeof(peso_hdr_t));
+    
+    // Step4: 计算UDP校验和
+    uint16_t checksum = checksum16((uint16_t *)buf->data, buf->len);
+    
+    // Step5: 恢复IP头部
+    memcpy(buf->data, ip_hdr_backup, sizeof(peso_hdr_t));
+    
+    // Step6: 去掉UDP伪头部
+    buf_remove_header(buf, sizeof(peso_hdr_t));
+    
+    // Step7: 返回校验和值
+    return checksum == 0 ? 0xFFFF : checksum;
 }
