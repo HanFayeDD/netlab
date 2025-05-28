@@ -5,3 +5,7 @@
 ![alt text](assets/image-1.png)
 ## arp
 ![alt text](assets/image-2.png)
+## ip
+![alt text](assets/image-3.png)
+## ICMP
+![alt text](assets/image-4.png)
