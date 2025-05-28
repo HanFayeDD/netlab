@@ -154,7 +154,6 @@ void tcp_in(buf_t *buf, uint8_t *src_ip) {
     }
 
     uint32_t remote_seq = swap32(hdr->seq);
-    uint32_t tcp_hdr_sz = (hdr->doff >> 4) * 4;
 
     /* =============================== TODO 2 BEGIN =============================== */
     /* Step1 ：根据接收包数据更新当前TCP连接内部状态，并填写回复报文的标志部分。 */

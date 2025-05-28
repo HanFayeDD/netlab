@@ -65,13 +65,39 @@ uint8_t ip_prefix_match(uint8_t *ipa, uint8_t *ipb) {
 /**
  * @brief 计算16位校验和
  *
- * @param buf 要计算的数据包
- * @param len 要计算的长度
- * @return uint16_t 校验和
+ * @param data 要计算的数据指针(16位为单位)
+ * @param len 要计算的数据长度(字节数)
+ * @return uint16_t 计算出的校验和
  */
 uint16_t checksum16(uint16_t *data, size_t len) {
-    // TO-DO
+    uint32_t sum = 0;  // 使用32位累加器防止溢出
+    size_t count = len / 2;  // 计算16位字的数量
+    
+    // Step1: 按16位分组相加
+    for (size_t i = 0; i < count; i++) {
+        sum += data[i];
+        // 处理32位溢出
+        if (sum & 0xFFFF0000) {
+            sum = (sum & 0xFFFF) + (sum >> 16);
+        }
+    }
+    
+    // Step2: 处理剩余8位(奇数长度情况)
+    if (len & 1) {
+        uint8_t *byte_data = (uint8_t *)data;
+        uint16_t last_byte = byte_data[len - 1];  // 获取最后一个字节
+        sum += last_byte;  // 将最后一个字节作为低8位相加
+    }
+    
+    // Step3: 循环处理高16位
+    while (sum >> 16) {
+        sum = (sum & 0xFFFF) + (sum >> 16);
+    }
+    
+    // Step4: 取反得到校验和
+    return (uint16_t)(~sum);
 }
+
 
 #pragma pack(1)
 typedef struct peso_hdr {
@@ -94,4 +120,6 @@ typedef struct peso_hdr {
  */
 uint16_t transport_checksum(uint8_t protocol, buf_t *buf, uint8_t *src_ip, uint8_t *dst_ip) {
     // TO-DO
+    
+
 }
