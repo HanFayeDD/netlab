@@ -13,10 +13,10 @@
  */
 void ip_in(buf_t *buf, uint8_t *src_mac) {
     // Step1: 检查数据包长度
-    printf("IP:enter ip\n");
-    printf("src_mac: %02x:%02x:%02x:%02x:%02x:%02x\n", 
-           src_mac[0], src_mac[1], src_mac[2], 
-           src_mac[3], src_mac[4], src_mac[5]);
+    // printf("IP:enter ip\n");
+    // printf("src_mac: %02x:%02x:%02x:%02x:%02x:%02x\n", 
+    //        src_mac[0], src_mac[1], src_mac[2], 
+    //        src_mac[3], src_mac[4], src_mac[5]);
     if (buf->len < sizeof(ip_hdr_t)) {
         return; // 数据包不完整，丢弃
     }
@@ -46,7 +46,7 @@ void ip_in(buf_t *buf, uint8_t *src_mac) {
 
     // Step3: 校验头部校验和
     uint16_t saved_checksum = hdr->hdr_checksum16; // 保存原始校验和
-    printf("original checksum %d\n", saved_checksum);
+    // printf("original checksum %d\n", saved_checksum);
     hdr->hdr_checksum16 = 0; // 置零以便计算
     
     // 计算校验和并比较
