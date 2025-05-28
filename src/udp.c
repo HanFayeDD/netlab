@@ -18,6 +18,7 @@ map_t udp_table;
 void udp_in(buf_t *buf, uint8_t *src_ip) {
     // TO-DO
     // Step1: 包检查
+    printf("UDP:enter UDP\n");
     if (buf->len < sizeof(udp_hdr_t)) {
         return; // 数据包不完整，丢弃
     }
@@ -36,6 +37,7 @@ void udp_in(buf_t *buf, uint8_t *src_ip) {
     uint16_t computed_checksum = transport_checksum(NET_PROTOCOL_UDP, buf, src_ip, net_if_ip);
     if (computed_checksum != saved_checksum && saved_checksum != 0xFFFF) {
         hdr->checksum16 = saved_checksum; // 恢复校验和
+        printf("UDP:checksum fasle\n");
         return; // 校验和错误，丢弃
     }
     hdr->checksum16 = saved_checksum; // 恢复校验和
@@ -47,6 +49,7 @@ void udp_in(buf_t *buf, uint8_t *src_ip) {
 
     if (!handler) {
         // Step4: 未找到处理函数
+        printf("UDP:no usable handler\n");
         buf_add_header(buf, sizeof(ip_hdr_t)); // 恢复IP头部
         icmp_unreachable(buf, src_ip, ICMP_CODE_PORT_UNREACH);
         return;
@@ -55,6 +58,7 @@ void udp_in(buf_t *buf, uint8_t *src_ip) {
     // Step5: 调用处理函数
     buf_remove_header(buf, sizeof(udp_hdr_t)); // 去掉UDP头部
     uint16_t src_port = swap16(hdr->src_port16);
+    printf("UDP:use handler\n");
     handler(buf->data, buf->len, src_ip, src_port);
 }
 

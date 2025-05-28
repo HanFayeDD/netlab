@@ -22,6 +22,7 @@ void ethernet_in(buf_t *buf) {
     buf_remove_header(buf, sizeof(ether_hdr_t));
     
     // Step3: 向上层传递数据包
+    // printf("ETH:go up\n");
     net_in(buf, protocol, src_mac);
 }
 

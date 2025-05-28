@@ -13,6 +13,10 @@
  */
 void ip_in(buf_t *buf, uint8_t *src_mac) {
     // Step1: 检查数据包长度
+    printf("IP:enter ip\n");
+    printf("src_mac: %02x:%02x:%02x:%02x:%02x:%02x\n", 
+           src_mac[0], src_mac[1], src_mac[2], 
+           src_mac[3], src_mac[4], src_mac[5]);
     if (buf->len < sizeof(ip_hdr_t)) {
         return; // 数据包不完整，丢弃
     }
@@ -22,35 +26,41 @@ void ip_in(buf_t *buf, uint8_t *src_mac) {
     
     // 检查IP版本号是否为IPv4
     if (hdr->version != IP_VERSION_4) {
+        printf("IP:drop not ipv4\n");
         return; // 不是IPv4，丢弃
     }
     
     // 计算IP头部长度(4字节为单位)
     uint16_t hdr_len = hdr->hdr_len * IP_HDR_LEN_PER_BYTE;
     if (hdr_len < sizeof(ip_hdr_t)) {
+        printf("IP:drop head error\n");
         return; // 头部长度异常，丢弃
     }
     
     // 检查总长度是否合法
     uint16_t total_len = swap16(hdr->total_len16);
     if (total_len > buf->len) {
+        printf("IP:drop data wrong\n");
         return; // 数据包不完整，丢弃
     }
 
     // Step3: 校验头部校验和
     uint16_t saved_checksum = hdr->hdr_checksum16; // 保存原始校验和
+    printf("original checksum %d\n", saved_checksum);
     hdr->hdr_checksum16 = 0; // 置零以便计算
     
     // 计算校验和并比较
     uint16_t computed_checksum = checksum16((uint16_t *)hdr, hdr_len);
     if (computed_checksum != saved_checksum) {
         hdr->hdr_checksum16 = saved_checksum; // 恢复原始校验和
+        printf("IP:drop checksum wrong\n");
         return; // 校验和错误，丢弃
     }
     hdr->hdr_checksum16 = saved_checksum; // 恢复原始校验和
 
     // Step4: 对比目的IP地址
     if (memcmp(hdr->dst_ip, net_if_ip, NET_IP_LEN) != 0) {
+        printf("IP:drop data not me\n");
         return; // 不是发给本机的包，丢弃
     }
 
@@ -63,6 +73,7 @@ void ip_in(buf_t *buf, uint8_t *src_mac) {
     buf_remove_header(buf, hdr_len);
 
     // Step7: 向上层传递数据包
+    // printf("IP: go up!\n");
     int res = net_in(buf, hdr->protocol, hdr->src_ip);
     
     if (res != 0) {
